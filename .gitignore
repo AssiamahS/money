@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+money-ledger*.json
+.DS_Store

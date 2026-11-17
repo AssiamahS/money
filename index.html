@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Money</title>
+<style>
+:root {
+  --bg: #f4f1ea; --card: #fffdf8; --ink: #1c1b18; --mute: #6f6a5f; --line: #ded8ca;
+  --red: #b3261e; --amber: #9a5b00; --green: #1f6b3a; --accent: #1c1b18; --bar: #e9e3d4;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #141412; --card: #1d1c19; --ink: #f1ede2; --mute: #9b9587; --line: #33312b;
+    --red: #ff8a80; --amber: #f0b45a; --green: #7fd69b; --accent: #f1ede2; --bar: #2a2823; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.45 ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 28px 16px 80px; }
+header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 15px; letter-spacing: .14em; text-transform: uppercase; margin: 0; }
+h2 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--mute);
+  margin: 40px 0 12px; font-weight: 600; }
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.mute { color: var(--mute); }
+.hero { margin-top: 20px; padding: 24px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+.hero .big { font-size: clamp(54px, 13vw, 104px); line-height: .95; font-weight: 700; letter-spacing: -.04em; }
+.hero .big small { font-size: .28em; letter-spacing: 0; font-weight: 500; color: var(--mute); margin-left: 8px; }
+.hero p { margin: 10px 0 0; max-width: 60ch; }
+.track { height: 10px; background: var(--bar); border-radius: 99px; overflow: hidden; margin-top: 18px; }
+.track i { display: block; height: 100%; background: var(--green); border-radius: 99px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.stat b { display: block; font-size: 24px; letter-spacing: -.02em; }
+.stat span { font-size: 12px; color: var(--mute); }
+.list { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.row { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; padding: 14px 16px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row .name { font-weight: 600; }
+.row .amt { font-size: 18px; font-weight: 650; text-align: right; }
+.row .note { grid-column: 1 / -1; font-size: 13px; color: var(--mute); }
+.row .acts { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.tag { display: inline-block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 99px; border: 1px solid currentColor; margin-left: 8px; vertical-align: 2px; }
+.overdue { color: var(--red); } .soon { color: var(--amber); } .paid, .ok { color: var(--green); }
+.unknown, .no_date { color: var(--mute); }
+button, input, select { font: inherit; color: inherit; }
+button { background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 5px 11px; cursor: pointer; }
+button:hover { border-color: var(--ink); }
+button.go { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+form { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
+input, select, textarea { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; min-width: 0; }
+textarea { font: 12px/1.4 ui-monospace, Menlo, monospace; color: inherit; min-height: 90px; grid-column: 1 / -1; }
+.bars { display: grid; gap: 8px; }
+.bar { display: grid; grid-template-columns: minmax(90px, 180px) 1fr auto; gap: 10px; align-items: center; font-size: 14px; }
+.bar .t { height: 8px; background: var(--bar); border-radius: 99px; overflow: hidden; }
+.bar .t i { display: block; height: 100%; background: var(--ink); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.panel h3 { margin: 0 0 10px; font-size: 13px; color: var(--mute); font-weight: 600; }
+ul.plain { margin: 0; padding-left: 18px; font-size: 14px; } ul.plain li { margin: 4px 0; }
+#msg { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: var(--bg);
+  padding: 9px 14px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; }
+#msg.on { opacity: 1; }
+.banner { margin-top: 14px; padding: 10px 14px; border: 1px dashed var(--amber); border-radius: 12px;
+  font-size: 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.banner[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { #msg { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Money</h1>
+    <span class="mute num" id="today"></span>
+  </header>
+
+  <div class="banner" id="banner" hidden><span id="bannerText"></span><span id="bannerActs"></span></div>
+  <section class="hero" id="hero" aria-live="polite"></section>
+  <div class="stats" id="stats"></div>
+
+  <h2>What I owe</h2>
+  <div class="list" id="owe"></div>
+  <form id="addOwe">
+    <input name="name" placeholder="Who / what" required aria-label="Name">
+    <input name="amount" placeholder="Amount (blank = unknown)" inputmode="decimal" aria-label="Amount">
+    <input name="due" type="date" aria-label="Due date">
+    <input name="note" placeholder="Note" aria-label="Note">
+    <button class="go">Add</button>
+  </form>
+
+  <h2>Temp cards</h2>
+  <div class="two">
+    <div>
+      <div class="list" id="cards"></div>
+      <form id="addCard">
+        <input name="label" placeholder="Label (e.g. Spotify)" required aria-label="Label">
+        <input name="provider" placeholder="Issuer (Privacy, Capital One…)" aria-label="Issuer">
+        <input name="last4" placeholder="Last 4 only" inputmode="numeric" maxlength="4" aria-label="Last four digits">
+        <input name="merchant" placeholder="Locked to merchant" aria-label="Merchant">
+        <input name="limit" placeholder="Limit $" inputmode="decimal" aria-label="Limit">
+        <button class="go">Add card</button>
+      </form>
+    </div>
+    <div class="panel">
+      <h3>Where the cards actually come from</h3>
+      <ul class="plain">
+        <li><b>Privacy.com</b> issues the numbers; this page only tracks them. An app can't mint real card numbers without a licensed issuer behind it.</li>
+        <li><b>Capital One</b> gives free virtual numbers per merchant on any of its open cards.</li>
+        <li><b>Apple Card</b> has its own virtual number in Wallet, and <b>Klarna</b> makes one-time cards.</li>
+        <li>Log label, last 4, merchant and limit here. Never the full number, expiry or CVV.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Where it goes <select id="month" aria-label="Month" style="width:auto;margin-left:8px"></select></h2>
+  <div class="two">
+    <div class="panel"><h3>By category</h3><div class="bars" id="cats"></div></div>
+    <div class="panel"><h3>Top merchants</h3><div class="bars" id="merch"></div></div>
+  </div>
+  <form id="importForm">
+    <input name="source" placeholder="Source (Apple Card, Chime…)" value="Apple Card" aria-label="Source">
+    <input name="file" type="file" accept=".csv,text/csv" aria-label="CSV file">
+    <button class="go">Import CSV</button>
+    <button type="button" id="clearTx">Clear this source</button>
+    <textarea name="csv" placeholder="…or paste CSV rows here. Apple Card: Wallet → card → Card Balance → pick a statement → Export Transactions → CSV." aria-label="CSV text"></textarea>
+  </form>
+  <div class="list" id="recent" style="margin-top:12px"></div>
+</div>
+<div id="msg" role="status"></div>
+
+<script src="core.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const usd = (n) => n == null ? "?" : "$" + Number(n).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const LABEL = {overdue: "overdue", soon: "due soon", ok: "on track", paid: "paid", unknown: "amount unknown", no_date: "no date"};
+let S = null;
+let LOCAL = false;            // true when there is no server (GitHub Pages, phone): data stays in this browser
+const STORE = "money-ledger-v1";
+
+function sampleLedger() {
+  const day = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  const led = MoneyCore.emptyLedger();
+  led.sample = true;
+  const add = (path, body) => MoneyCore.applyOp(led, path, body);
+  add("/api/obligation", {name: "Secured card deposit", amount: 200, due: day(31), note: "Sample row. Approval expires if the deposit is not funded in time."});
+  add("/api/obligation", {name: "Pay-later instalment", amount: 10.44, due: day(-3), note: "Sample row. Auto-payment bounced."});
+  add("/api/obligation", {name: "Cash advance app", amount: 80, due: day(5), verified: false, note: "Sample row. An estimate until the app is checked."});
+  add("/api/obligation", {name: "Old loan", amount: "", note: "Sample row. Balance not looked up yet."});
+  add("/api/obligation/pay", {id: led.obligations[0].id, amount: 45});
+  add("/api/card", {label: "Music subscription", provider: "Privacy", last4: "4821", merchant: "Spotify", limit: 12});
+  add("/api/import", {source: "Sample card", csv: ["Date,Description,Amount", `${day(-2)},DUNKIN #3312,-4.89`, `${day(-3)},SHELL OIL 5521,-31.07`,
+    `${day(-4)},UBER EATS,-23.50`, `${day(-5)},SPOTIFY USA,-11.99`, `${day(-6)},SHOPRITE,-48.20`, `${day(-7)},PAYROLL,612.40`].join("\n")});
+  return led;
+}
+
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(STORE);
+    if (raw) return {...MoneyCore.emptyLedger(), ...JSON.parse(raw)};
+  } catch (err) { /* private window or corrupt data: fall through to the sample */ }
+  return sampleLedger();
+}
+
+function saveLocal(ledger) {
+  try { localStorage.setItem(STORE, JSON.stringify(ledger)); return true; }
+  catch (err) { toast("This browser is not letting the page save"); return false; }
+}
+
+function renderBanner() {
+  const banner = $("banner");
+  banner.hidden = !LOCAL;
+  if (!LOCAL) return;
+  const sample = Boolean(loadLocal().sample);
+  $("bannerText").textContent = sample
+    ? "These are sample numbers. Everything you enter is saved in this browser only, never uploaded."
+    : "Saved in this browser only, never uploaded. Clearing site data erases it.";
+  $("bannerActs").replaceChildren(el("button", {onclick: () => {
+    if (!sample && !confirm("Erase everything saved in this browser?")) return;
+    saveLocal(MoneyCore.emptyLedger());
+    refresh();
+  }}, sample ? "Start with my own numbers" : "Erase all"));
+}
+
+function el(tag, attrs = {}, ...kids) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k === "style") node.style.cssText = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const kid of kids) if (kid != null) node.append(kid);
+  return node;
+}
+
+function toast(text) {
+  $("msg").textContent = text;
+  $("msg").classList.add("on");
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => $("msg").classList.remove("on"), 2600);
+}
+
+async function post(path, body) {
+  if (LOCAL) {
+    const ledger = loadLocal();
+    let out;
+    try { out = MoneyCore.applyOp(ledger, path, body); }
+    catch (err) { toast(err.message); return null; }
+    if (!saveLocal(ledger)) return null;
+    S = MoneyCore.buildState(ledger, null);
+    render();
+    return {ok: true, ...out};
+  }
+  const res = await fetch(path.slice(1), {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const data = await res.json();
+  if (!res.ok) { toast(data.error || "That didn't save"); return null; }
+  S = data.state;
+  render();
+  return data;
+}
+
+function when(o) {
+  if (o.days_left == null) return "no due date";
+  if (o.days_left < 0) return `${-o.days_left} day${o.days_left === -1 ? "" : "s"} late`;
+  if (o.days_left === 0) return "due today";
+  return `${o.days_left} day${o.days_left === 1 ? "" : "s"} left · ${o.due}`;
+}
+
+function renderHero() {
+  const target = S.obligations.find((o) => o.remaining && o.days_left != null && o.days_left >= 0);
+  const hero = $("hero");
+  hero.replaceChildren();
+  if (!target) {
+    hero.append(el("div", {class: "big"}, "0", el("small", {}, "dated deadlines open")));
+    return;
+  }
+  const pct = target.amount ? Math.min(100, Math.round(target.paid / target.amount * 100)) : 0;
+  hero.append(
+    el("div", {class: "mute"}, "Next deadline"),
+    el("div", {class: "big num"}, String(target.days_left), el("small", {}, target.days_left === 1 ? "day" : "days")),
+    el("p", {}, el("b", {}, target.name), ` needs ${usd(target.remaining)} by ${target.due}. `,
+      target.per_day ? `That is ${usd(target.per_day)} a day, or ${usd(target.per_week)} a week.` : ""),
+    el("div", {class: "track", role: "progressbar", "aria-valuenow": pct, "aria-valuemin": 0, "aria-valuemax": 100,
+      "aria-label": "Saved so far"}, el("i", {style: `width:${pct}%`})),
+    el("p", {class: "mute num"}, `${usd(target.paid)} of ${usd(target.amount)} set aside`));
+}
+
+function renderStats() {
+  const t = S.totals, bal = S.balances;
+  const cells = [
+    [usd(t.owed), "owed in total (known amounts)"],
+    [usd(t.overdue), "already overdue"],
+    [usd(t.next_30), "due inside 30 days"],
+    [String(t.unknown), "debts with no amount yet"],
+  ];
+  if (bal && bal.accounts.length) cells.push([usd(bal.total), `in the bank (${bal.date})`]);
+  $("stats").replaceChildren(...cells.map(([big, small]) =>
+    el("div", {class: "stat"}, el("b", {class: "num"}, big), el("span", {}, small))));
+}
+
+function renderOwe() {
+  const rows = S.obligations.map((o) => {
+    const acts = el("div", {class: "acts"});
+    if (o.status !== "paid") {
+      acts.append(el("button", {onclick: async () => {
+        const raw = prompt(`Amount put toward ${o.name}`, o.remaining ?? "");
+        if (raw) await post("/api/obligation/pay", {id: o.id, amount: raw});
+      }}, o.remaining == null ? "Log payment" : "Put money in"));
+    }
+    if (o.amount == null || !o.verified) {
+      acts.append(el("button", {onclick: async () => {
+        const raw = prompt(`Real balance for ${o.name}`, o.amount ?? "");
+        if (raw == null) return;
+        const due = prompt("Due date (YYYY-MM-DD, blank to keep)", o.due || "");
+        await post("/api/obligation", {...o, amount: raw, due: due || o.due, verified: true});
+      }}, "Set real amount"));
+    }
+    if (o.payments && o.payments.length) acts.append(el("button", {onclick: () => post("/api/obligation/undo", {id: o.id})}, "Undo last"));
+    acts.append(el("button", {onclick: () => { if (confirm(`Remove ${o.name}?`)) post("/api/obligation/delete", {id: o.id}); }}, "Remove"));
+    return el("div", {class: "row"},
+      el("div", {}, el("span", {class: "name"}, o.name), el("span", {class: `tag ${o.status}`}, LABEL[o.status]),
+        o.verified ? null : el("span", {class: "tag unknown"}, "estimate"),
+        el("div", {class: "mute num"}, when(o))),
+      el("div", {class: `amt num ${o.status === "overdue" ? "overdue" : ""}`}, usd(o.remaining)),
+      o.note ? el("div", {class: "note"}, o.note) : null, acts);
+  });
+  $("owe").replaceChildren(...(rows.length ? rows : [el("div", {class: "row mute"}, "Nothing logged.")]));
+}
+
+function renderCards() {
+  const rows = S.cards.map((c) => el("div", {class: "row"},
+    el("div", {}, el("span", {class: "name"}, c.label), el("span", {class: `tag ${c.status === "active" ? "ok" : "unknown"}`}, c.status),
+      el("div", {class: "mute num"}, [c.provider, c.last4 && `•••• ${c.last4}`, c.merchant && `locked to ${c.merchant}`].filter(Boolean).join(" · "))),
+    el("div", {class: "amt num"}, c.limit == null ? "" : usd(c.limit)),
+    el("div", {class: "acts"},
+      el("button", {onclick: () => post("/api/card", {...c, status: c.status === "active" ? "paused" : "active"})}, c.status === "active" ? "Pause" : "Resume"),
+      el("button", {onclick: () => { if (confirm(`Remove ${c.label}?`)) post("/api/card/delete", {id: c.id}); }}, "Remove"))));
+  $("cards").replaceChildren(...(rows.length ? rows : [el("div", {class: "row mute"}, "No temp cards logged yet.")]));
+}
+
+function bars(target, items, empty) {
+  const max = Math.max(1, ...items.map((i) => i.amount));
+  $(target).replaceChildren(...(items.length ? items.map((i) => el("div", {class: "bar"},
+    el("span", {}, i.name), el("div", {class: "t"}, el("i", {style: `width:${i.amount / max * 100}%`})),
+    el("span", {class: "num"}, usd(i.amount)))) : [el("div", {class: "mute"}, empty)]));
+}
+
+function renderSpending() {
+  const sp = S.spending, pick = $("month");
+  pick.replaceChildren(...(sp.months.length ? sp.months : ["no data"]).map((m) => el("option", {value: m}, m)));
+  if (sp.month) pick.value = sp.month;
+  const empty = "Import a statement to see this.";
+  bars("cats", sp.by_category, empty);
+  bars("merch", sp.by_merchant, empty);
+  const rows = S.recent.map((t) => el("div", {class: "row"},
+    el("div", {}, el("span", {class: "name"}, t.merchant), el("div", {class: "mute num"}, `${t.date} · ${t.category} · ${t.source}`)),
+    el("div", {class: `amt num ${t.kind === "spend" ? "" : "paid"}`}, (t.kind === "spend" ? "-" : "+") + usd(t.amount))));
+  const head = sp.month ? el("div", {class: "row"}, el("div", {class: "name"}, `${sp.month}: spent ${usd(sp.spent)}` + (sp.income ? `, in ${usd(sp.income)}` : "")),
+    el("div", {class: "mute num"}, `${sp.count} rows`)) : null;
+  $("recent").replaceChildren(...(head ? [head, ...rows] : [el("div", {class: "row mute"}, "No transactions imported yet.")]));
+}
+
+function render() {
+  $("today").textContent = S.today;
+  renderBanner(); renderHero(); renderStats(); renderOwe(); renderCards(); renderSpending();
+}
+
+async function refresh(month) {
+  if (!LOCAL) {
+    try {
+      const res = await fetch("api/state" + (month ? `?month=${encodeURIComponent(month)}` : ""));
+      if (!res.ok) throw new Error("no server");
+      S = await res.json();
+    } catch (err) { LOCAL = true; }
+  }
+  if (LOCAL) S = MoneyCore.buildState(loadLocal(), month || null);
+  render();
+}
+
+function formData(form) { return Object.fromEntries(new FormData(form).entries()); }
+
+$("addOwe").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (await post("/api/obligation", formData(e.target))) e.target.reset();
+});
+$("addCard").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (await post("/api/card", formData(e.target))) e.target.reset();
+});
+$("importForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target, file = form.file.files[0];
+  const csv = file ? await file.text() : form.csv.value;
+  if (!csv.trim()) return toast("Pick a CSV file or paste rows first");
+  const out = await post("/api/import", {source: form.source.value, csv});
+  if (out) { toast(`Read ${out.read} rows, ${out.added} new`); form.csv.value = ""; form.file.value = ""; }
+});
+$("clearTx").addEventListener("click", () => {
+  const source = $("importForm").source.value;
+  if (confirm(`Delete all imported ${source} transactions?`)) post("/api/txns/clear", {source});
+});
+$("month").addEventListener("change", (e) => refresh(e.target.value));
+refresh();
+</script>
+</body>
+</html>
