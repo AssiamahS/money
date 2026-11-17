@@ -90,6 +90,13 @@ ul.plain { margin: 0; padding-left: 18px; font-size: 14px; } ul.plain li { margi
     <button class="go">Add</button>
   </form>
 
+  <h2>Subscriptions <span class="num" id="subsTotal" style="letter-spacing:0;text-transform:none"></span></h2>
+  <div class="list" id="subs"></div>
+  <div class="banner" style="border-style:solid;border-color:var(--line)">
+    <span id="mailStatus" class="mute"></span>
+    <button class="go" id="scanBtn">Scan email now</button>
+  </div>
+
   <h2>Temp cards</h2>
   <div class="two">
     <div>
@@ -150,6 +157,8 @@ function sampleLedger() {
   add("/api/obligation", {name: "Cash advance app", amount: 80, due: day(5), verified: false, note: "Sample row. An estimate until the app is checked."});
   add("/api/obligation", {name: "Old loan", amount: "", note: "Sample row. Balance not looked up yet."});
   add("/api/obligation/pay", {id: led.obligations[0].id, amount: 45});
+  led.subs.push({id: "sample1", name: "Cloud storage", amount: 2.99, next: day(12), charges: [day(-18)], note: "Sample row."},
+    {id: "sample2", name: "Cash advance app membership", amount: 6.99, next: null, charges: [day(-1)], note: "Sample row."});
   add("/api/card", {label: "Music subscription", provider: "Privacy", last4: "4821", merchant: "Spotify", limit: 12});
   add("/api/import", {source: "Sample card", csv: ["Date,Description,Amount", `${day(-2)},DUNKIN #3312,-4.89`, `${day(-3)},SHELL OIL 5521,-31.07`,
     `${day(-4)},UBER EATS,-23.50`, `${day(-5)},SPOTIFY USA,-11.99`, `${day(-6)},SHOPRITE,-48.20`, `${day(-7)},PAYROLL,612.40`].join("\n")});
@@ -283,11 +292,37 @@ function renderOwe() {
     return el("div", {class: "row"},
       el("div", {}, el("span", {class: "name"}, o.name), el("span", {class: `tag ${o.status}`}, LABEL[o.status]),
         o.verified ? null : el("span", {class: "tag unknown"}, "estimate"),
+        o.src ? el("span", {class: "tag unknown"}, "from email") : null,
         el("div", {class: "mute num"}, when(o))),
       el("div", {class: `amt num ${o.status === "overdue" ? "overdue" : ""}`}, usd(o.remaining)),
       o.note ? el("div", {class: "note"}, o.note) : null, acts);
   });
   $("owe").replaceChildren(...(rows.length ? rows : [el("div", {class: "row mute"}, "Nothing logged.")]));
+}
+
+function renderSubs() {
+  const subs = S.subs || [];
+  const rows = subs.map((s) => {
+    const last = s.charges && s.charges.length ? s.charges[s.charges.length - 1] : null;
+    const timing = [s.next && `next charge ${s.next}`, last && `last charged ${last}`,
+      s.charges && s.charges.length > 1 && `${s.charges.length} charges seen`].filter(Boolean).join(" · ");
+    return el("div", {class: "row"},
+      el("div", {}, el("span", {class: "name"}, s.name), el("div", {class: "mute num"}, timing || "seen in email")),
+      el("div", {class: "amt num"}, s.amount == null ? "price not in email" : usd(s.amount)),
+      s.note ? el("div", {class: "note"}, s.note) : null,
+      el("div", {class: "acts"}, el("button", {onclick: () => {
+        if (confirm(`Stop tracking ${s.name}? This does not cancel it.`)) post("/api/subscription/delete", {id: s.id});
+      }}, "Remove")));
+  });
+  $("subs").replaceChildren(...(rows.length ? rows : [el("div", {class: "row mute"}, "No subscriptions found yet.")]));
+  $("subsTotal").textContent = subs.length ? `· ${usd(S.subs_total)} with known prices` : "";
+  const mail = S.mail || {};
+  $("scanBtn").hidden = LOCAL;
+  $("mailStatus").textContent = LOCAL
+    ? "Reading email only works in the version that runs on your own computer."
+    : mail.connected
+      ? `Mailbox connected. Checked every 3 hours${mail.last_scan ? `, last ${mail.last_scan.replace("T", " ")}` : ""}.`
+      : `No mailbox connected yet${mail.last_scan ? ` (last fed ${mail.last_scan.replace("T", " ")})` : ""}. Add an app password to ~/finance/.env to turn on automatic scanning.`;
 }
 
 function renderCards() {
@@ -325,7 +360,7 @@ function renderSpending() {
 
 function render() {
   $("today").textContent = S.today;
-  renderBanner(); renderHero(); renderStats(); renderOwe(); renderCards(); renderSpending();
+  renderBanner(); renderHero(); renderStats(); renderOwe(); renderSubs(); renderCards(); renderSpending();
 }
 
 async function refresh(month) {
@@ -361,6 +396,14 @@ $("importForm").addEventListener("submit", async (e) => {
 $("clearTx").addEventListener("click", () => {
   const source = $("importForm").source.value;
   if (confirm(`Delete all imported ${source} transactions?`)) post("/api/txns/clear", {source});
+});
+$("scanBtn").addEventListener("click", async (e) => {
+  e.target.disabled = true;
+  e.target.textContent = "Reading email…";
+  const out = await post("/api/scan", {});
+  e.target.disabled = false;
+  e.target.textContent = "Scan email now";
+  if (out) toast(`${out.read} emails read: ${out.added} new bills, ${out.subs} new subscriptions, ${out.payments} payments`);
 });
 $("month").addEventListener("change", (e) => refresh(e.target.value));
 refresh();

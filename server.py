@@ -7,12 +7,14 @@ Run: python3 ~/finance/money/server.py   then open http://127.0.0.1:8803
 import json
 import os
 import sys
+import threading
 import uuid
 from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import core
+import mailscan
 
 HOST, PORT = "127.0.0.1", 8803
 HERE = Path(__file__).resolve().parent
@@ -20,7 +22,9 @@ LEDGER = Path(os.environ.get("MONEY_LEDGER", HERE.parent / "money-ledger.json"))
 BALANCE_HISTORY = HERE.parent / "history.jsonl"
 MAX_BODY = 5 * 1024 * 1024
 STATUS_ORDER = {"overdue": 0, "soon": 1, "ok": 2, "no_date": 3, "unknown": 4, "paid": 5}
-EMPTY = {"obligations": [], "cards": [], "txns": []}
+EMPTY = {"obligations": [], "cards": [], "txns": [], "subs": []}
+SCAN_EVERY_SECONDS = 3 * 60 * 60
+WRITE_LOCK = threading.Lock()
 
 
 def load():
@@ -66,6 +70,12 @@ def state(month=None):
             "unknown": sum(1 for o in obligations if o["status"] == "unknown"),
         },
         "cards": ledger["cards"],
+        "subs": sorted(ledger["subs"], reverse=True,
+                       key=lambda s: s.get("next") or (s["charges"] or [""])[-1]),
+        "subs_total": round(sum(s["amount"] or 0 for s in ledger["subs"]), 2),
+        "mail": {"connected": mailscan.mailbox_credentials() is not None,
+                 "last_scan": ledger.get("mail", {}).get("last_scan"),
+                 "last_result": ledger.get("mail", {}).get("last_result")},
         "spending": core.summarize(ledger["txns"], month),
         "recent": [t for t in ledger["txns"]
                    if not month or t["date"][:7] == month][:40],
@@ -161,6 +171,36 @@ def op_import(ledger, body):
     return {"read": len(rows), "added": added}
 
 
+def op_subscription_delete(ledger, body):
+    ledger["subs"].remove(find(ledger["subs"], body.get("id")))
+
+
+def op_scan(ledger, body):
+    creds = mailscan.mailbox_credentials()
+    if not creds:
+        raise ValueError("No mailbox connected yet: add GMAIL_USER and GMAIL_APP_PASSWORD "
+                         "to ~/finance/.env")
+    try:
+        messages = mailscan.fetch_imap(*creds)
+    except (OSError, mailscan.imaplib.IMAP4.error) as err:
+        raise ValueError(f"Mailbox refused the login or the connection dropped: {err}")
+    return mailscan.scan_messages(ledger, messages)
+
+
+def scan_forever():
+    """Background sweep so new bills show up without anyone pressing the button."""
+    while True:
+        if mailscan.mailbox_credentials():
+            try:
+                with WRITE_LOCK:
+                    ledger = load()
+                    op_scan(ledger, {})
+                    save(ledger)
+            except ValueError as err:
+                print(f"mail scan: {err}", file=sys.stderr, flush=True)
+        threading.Event().wait(SCAN_EVERY_SECONDS)
+
+
 def op_txns_clear(ledger, body):
     source = clean_text(body.get("source"), 40)
     if not source:
@@ -177,6 +217,8 @@ OPS = {
     "/api/card/delete": op_card_delete,
     "/api/import": op_import,
     "/api/txns/clear": op_txns_clear,
+    "/api/subscription/delete": op_subscription_delete,
+    "/api/scan": op_scan,
 }
 
 
@@ -224,9 +266,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(404 if op is None else 413, {"error": "bad request"})
         try:
             body = json.loads(self.rfile.read(length) or b"{}")
-            ledger = load()
-            result = op(ledger, body) or {}
-            save(ledger)
+            with WRITE_LOCK:
+                ledger = load()
+                result = op(ledger, body) or {}
+                save(ledger)
         except (ValueError, KeyError, TypeError) as err:
             return self.reply(400, {"error": str(err)})
         self.reply(200, {"ok": True, **result, "state": state()})
@@ -234,6 +277,8 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     try:
-        ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+        httpd = ThreadingHTTPServer((HOST, PORT), Handler)
+        threading.Thread(target=scan_forever, daemon=True).start()
+        httpd.serve_forever()
     except OSError as err:
         sys.exit(f"cannot bind {HOST}:{PORT}: {err}")

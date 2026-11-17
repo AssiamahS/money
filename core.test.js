@@ -85,6 +85,11 @@ test("ops reject bad input and keep only the last four card digits", () => {
   assert.throws(() => core.applyOp(ledger, "/api/obligation", {name: ""}), /name is required/);
   assert.throws(() => core.applyOp(ledger, "/api/obligation", {name: "x", amount: "-5"}), /positive/);
   assert.throws(() => core.applyOp(ledger, "/api/obligation", {name: "x", due: "soon"}), /date/);
+  assert.throws(() => core.applyOp(ledger, "/api/scan", {}), /own computer/);
+  ledger.subs.push({id: "s1", name: "Storage", amount: 2.99, charges: []});
+  assert.equal(core.buildState(ledger, null, TODAY).subs_total, 2.99);
+  core.applyOp(ledger, "/api/subscription/delete", {id: "s1"});
+  assert.equal(ledger.subs.length, 0);
   core.applyOp(ledger, "/api/card", {label: "Music", last4: "4111 1111 1111 1234", limit: "15"});
   assert.equal(ledger.cards[0].last4, "1234");
   assert.equal(ledger.cards[0].limit, 15);

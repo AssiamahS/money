@@ -29,10 +29,26 @@ The ledger is written to `../money-ledger.json` (override with `MONEY_LEDGER=/pa
   description and amount columns) and get spend by category and merchant per month.
   Re-importing the same file adds nothing.
 
+## Reading email (local version only)
+
+`mailscan.py` reads notification emails and files them for you: upcoming and failed payments
+and cash advances land under "What I owe", receipts and renewal notices land under
+"Subscriptions", and "payment received" mails log a payment against the matching row.
+Each email is applied once, so rescans are safe and a row you delete stays deleted.
+
+```sh
+# ~/finance/.env  (Google account -> Security -> App passwords)
+GMAIL_USER=you@gmail.com
+GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+```
+
+With that file in place the server sweeps the mailbox every 3 hours and the page gets a
+"Scan email now" button. Read-only IMAP; nothing is sent, moved or marked as read.
+
 ## Tests
 
 ```sh
-python3 -m unittest test_core     # server-side logic
+python3 -m unittest test_core test_mailscan   # server-side logic + email rules
 node --test core.test.js          # browser-side twin of the same logic
 ```
 

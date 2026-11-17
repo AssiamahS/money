@@ -198,7 +198,7 @@
       by_source: ranked(bySource), count: scoped.length};
   }
 
-  const emptyLedger = () => ({obligations: [], cards: [], txns: []});
+  const emptyLedger = () => ({obligations: [], cards: [], txns: [], subs: []});
 
   function buildState(ledger, month, today) {
     const day = today || todayISO();
@@ -217,6 +217,9 @@
         unknown: obligations.filter((o) => o.status === "unknown").length,
       },
       cards: ledger.cards,
+      subs: ledger.subs || [],
+      subs_total: round2((ledger.subs || []).reduce((sum, s) => sum + (s.amount || 0), 0)),
+      mail: {connected: false, last_scan: null, last_result: null},
       spending: summarize(ledger.txns, month),
       recent: ledger.txns.filter((t) => !month || t.date.slice(0, 7) === month).slice(0, 40),
       balances: null,
@@ -286,6 +289,12 @@
       const [merged, added] = mergeTxns(ledger.txns, rows);
       ledger.txns = merged;
       return {read: rows.length, added};
+    },
+    "/api/subscription/delete"(ledger, body) {
+      ledger.subs.splice(ledger.subs.indexOf(find(ledger.subs, body.id)), 1);
+    },
+    "/api/scan"() {
+      throw new Error("Reading email needs the version that runs on your own computer");
     },
     "/api/txns/clear"(ledger, body) {
       const source = cleanText(body.source, 40);
